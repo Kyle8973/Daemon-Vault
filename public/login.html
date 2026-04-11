@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <title>Login - Daemon Vault</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <noscript>
+        <div class="no-js-banner">
+            ⚠️ <br><br> JavaScript Is Disabled <br><br> Daemon Vault Requires JavaScript To Function Properly <br><br>
+            Please Enable JavaScript In Your Browser Settings<br><br> ⚠️
+        </div>
+        <style>
+            /* Hide the login card so users don't see a broken form */
+            .card {
+                display: none !important;
+            }
+        </style>
+    </noscript>
+    <div class="card" style="max-width: 400px; margin: 4rem auto;">
+        <h1 id="form-title" style="text-align:center; margin-bottom: 20px;">Daemon Vault 😈<br> <small
+                style="font-size:0.5em; color:#666;">A Secure Digital Evidence Management System</small></h1>
+
+        <div style="text-align: center; margin-bottom: 10px;">
+            <small>
+                Developed By <a href="https://github.com/Kyle8973" target="_blank"
+                    style="color: #007bff; text-decoration: none;">Kyle8973</a>
+            </small>
+        </div>
+
+        <div id="error-msg"></div>
+        <div id="success-msg"></div>
+
+        <form id="authForm" onsubmit="event.preventDefault()">
+
+            <input type="text" id="username" placeholder="Username" style="margin-bottom:10px;" required>
+            <input type="password" id="password" placeholder="Password" style="margin-bottom:20px;" required>
+
+            <div id="confirm-container">
+                <input type="password" id="confirmPassword" placeholder="Confirm Password">
+            </div>
+
+            <button id="actionBtn" onclick="handleAction()">Login</button>
+
+            <button id="toggleBtn" type="button" class="secondary" onclick="toggleMode()">Create Account</button>
+
+        </form>
+    </div>
+
+    <script src="/javascript/BlockedBanner.js"></script>
+
+    <script>
+        let isRegisterMode = false;
+        let isPermanentlyBlocked = false; // Flag to prevent buttons from re-enabling
+
+        // 1. ON LOAD: Check Settings & Block Status
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check if Registration is Disabled
+            try {
+                const res = await fetch('/api/auth-settings');
+                if (res.ok) {
+                    const settings = await res.json();
+                    if (!settings.registrationEnabled) {
+                        document.getElementById('toggleBtn').style.display = 'none';
+                    }
+                }
+            } catch (e) {
+                // Ignore error if route doesn't exist
+            }
+
+            // Check if IP is currently blocked by Rate Limiter
+            try {
+                const statusRes = await fetch('/api/status');
+                if (statusRes.ok) {
+                    const statusData = await statusRes.json();
+                    if (statusData.blocked) {
+                        isPermanentlyBlocked = true; // Lock the UI
+                        const actionBtn = document.getElementById('actionBtn');
+                        const toggleBtn = document.getElementById('toggleBtn');
+                        
+                        // Make buttons physically unclickable
+                        actionBtn.disabled = true;
+                        actionBtn.style.opacity = '0.5';
+                        actionBtn.style.cursor = 'not-allowed';
+                        
+                        toggleBtn.disabled = true;
+                        toggleBtn.style.opacity = '0.5';
+                        toggleBtn.style.cursor = 'not-allowed';
+
+                        // Immediately show the block message on the screen
+                        showError(`Your IP Has Been Temporarily Blocked: Rate Limits \n\n Try Again In ${statusData.remaining} Minutes`);
+                    }
+                }
+            } catch (e) {
+                // Ignore
+            }
+        });
+
+        // 2. TOGGLE: Switch between Login and Register Forms
+        function toggleMode(preserveMessage = false) {
+            if (isPermanentlyBlocked) return; // Prevent toggling if blocked
+
+            isRegisterMode = !isRegisterMode;
+
+            const title = document.getElementById('form-title');
+            const actionBtn = document.getElementById('actionBtn');
+            const toggleBtn = document.getElementById('toggleBtn');
+            const confirmBox = document.getElementById('confirm-container');
+            const confirmInput = document.getElementById('confirmPassword');
+            const errorMsg = document.getElementById('error-msg');
+            const successMsg = document.getElementById('success-msg');
+
+            // Reset Messages UNLESS we specifically want to keep them
+            if (!preserveMessage) {
+                errorMsg.style.display = 'none';
+                successMsg.style.display = 'none';
+            }
+
+            if (isRegisterMode) {
+                // Register Mode
+                title.innerText = "Create Account";
+                actionBtn.innerText = "Register";
+                actionBtn.classList.add('success');
+                toggleBtn.innerText = "Back to Login";
+                confirmBox.classList.add('visible');
+                confirmInput.required = true;
+            } else {
+                // Login Mode
+                title.innerText = "Daemon Vault 😈";
+                actionBtn.innerText = "Login";
+                actionBtn.classList.remove('success');
+                toggleBtn.innerText = "Create Account";
+                confirmBox.classList.remove('visible');
+                confirmInput.required = false;
+                confirmInput.value = '';
+            }
+        }
+
+        // 3. ACTION: Handle Submit
+        async function handleAction() {
+            if (isPermanentlyBlocked) return; // Failsafe
+
+            const form = document.getElementById('authForm');
+
+            // Check HTML5 validity
+            if (!form.reportValidity()) return;
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            // Hide previous errors
+            document.getElementById('error-msg').style.display = 'none';
+
+            if (isRegisterMode) {
+                // --- REGISTER FLOW ---
+                const confirm = document.getElementById('confirmPassword').value;
+
+                if (password !== confirm) {
+                    showError("Passwords Do Not Match");
+                    return;
+                }
+
+                await performAuth('/api/register', { username, password });
+
+            } else {
+                // --- LOGIN FLOW ---
+                await performAuth('/api/login', { username, password });
+            }
+        }
+
+        // 4. API CALL
+        async function performAuth(endpoint, body) {
+            const btn = document.getElementById('actionBtn');
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    if (isRegisterMode) {
+                        // Registration Success
+                        const successDiv = document.getElementById('success-msg');
+                        successDiv.innerText = data.message || "Account Created";
+                        successDiv.style.display = 'block';
+
+                        // Switch back to login form BUT keep the success message visible
+                        toggleMode(true);
+
+                        // Clear the inputs so they can login cleanly
+                        document.getElementById('username').value = '';
+                        document.getElementById('password').value = '';
+                    } else {
+                        // Login Success
+                        window.location.href = '/dashboard';
+                    }
+                } else {
+                    // ERROR: Display EXACT backend error
+                    showError(data.error || "Authentication Failed");
+                    
+                    // If the backend returns a 429 (Rate Limit), lock the UI instantly
+                    if (res.status === 429) {
+                        isPermanentlyBlocked = true;
+                        const toggleBtn = document.getElementById('toggleBtn');
+                        
+                        btn.disabled = true;
+                        btn.style.opacity = '0.5';
+                        btn.style.cursor = 'not-allowed';
+                        
+                        toggleBtn.disabled = true;
+                        toggleBtn.style.opacity = '0.5';
+                        toggleBtn.style.cursor = 'not-allowed';
+                    }
+                }
+            } catch (err) {
+                showError("Server Connection Error");
+            } finally {
+                // Only re-enable the button if they haven't been rate limited
+                if (!isPermanentlyBlocked) {
+                    btn.disabled = false;
+                }
+            }
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.innerText = msg;
+            el.style.display = 'block';
+        }
+    </script>
+</body>
+
+</html>

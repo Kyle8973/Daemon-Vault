@@ -1,0 +1,113 @@
+/* --- YOUR ORIGINAL STYLES (UNCHANGED) --- */
+body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; background: #f4f4f4; color: #333; }
+.card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 2rem; }
+input, select, textarea { padding: 12px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+button { padding: 12px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+button:hover { background: #0056b3; }
+.secondary { background: #6c757d; }
+.danger { background: #dc3545; }
+.success { background: #28a745; }
+.info { background: #17a2b8; }
+.flex-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.btn-auto { width: auto; margin: 0; padding: 8px 15px; } 
+.btn-group { display: flex; gap: 5px; } 
+.btn-group button { width: auto; padding: 5px 10px; font-size: 0.85em; margin: 0; }
+.case-card { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 6px; cursor: pointer; background: white; transition: 0.2s; }
+.case-card:hover { border-color: #007bff; background-color: #f8f9fa; }
+.role-badge { font-size: 0.75em; padding: 2px 6px; background: #eee; border-radius: 4px; color: #555; text-transform: uppercase; width: fit-content; }
+.modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+.modal-content { background-color: #fff; margin: 5% auto; padding: 25px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.hash-box { background: #f4f4f4; padding: 10px; border: 1px solid #ddd; font-family: monospace; word-break: break-all; font-size: 0.85em; margin-bottom: 10px; }
+.audit-table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-top: 10px; }
+.audit-table th, .audit-table td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
+.audit-table th { background-color: #f8f9fa; }
+.top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 15px; }
+.secure-img { user-select: none; -webkit-user-drag: none; }
+
+/* Login Page Styles (kept for compatibility) */
+#error-msg, #success-msg { padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 0.9em; text-align: center; display: none; white-space: pre-line; }
+#error-msg { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+#success-msg { color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; }
+#confirm-container { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out, margin 0.3s ease; margin-bottom: 0; }
+#confirm-container.visible { max-height: 60px; margin-bottom: 20px; }
+button:disabled { opacity: 0.6; cursor: not-allowed; background-color: #ccc !important; color: #666 !important; }
+
+/* Noscript Banner */
+.no-js-banner { color: white; background: #dc3545; text-align: center; padding: 20px; position: fixed; top: 0; left: 0; width: 100%; z-index: 9999; font-weight: bold; font-family: sans-serif; box-sizing: border-box; }
+
+
+/* --- NEW: MOBILE RESPONSIVE PATCH --- */
+/* These rules ONLY apply when the screen width is 600px or less (Mobile Phones) */
+@media (max-width: 600px) {
+    
+    /* 1. Reduce Layout Spacing */
+    body {
+        margin: 1rem auto; /* Less vertical margin */
+        padding: 0 10px;   /* Smaller side padding */
+    }
+    .card {
+        padding: 1.5rem 1rem; /* Tighter padding inside cards */
+    }
+
+    /* 2. Stack Flex Rows Vertically */
+    /* This fixes the "Your Cases" and "+ New Case" button being on the same line */
+    .flex-row {
+        flex-direction: column;
+        align-items: stretch; /* Stretch items to full width */
+        gap: 15px;
+    }
+
+    /* 3. Make Buttons Full Width on Mobile */
+    /* Easier to tap with a finger */
+    .btn-auto {
+        width: 100% !important; /* Force full width, overriding inline styles */
+        margin-top: 5px;
+    }
+
+    /* 4. Fix the Case Header Layout */
+    /* This targets the specific nested div in your dashboard where case info and buttons are */
+    #case-workspace-view .card > .flex-row {
+        flex-direction: column;
+        align-items: flex-start !important; /* Align text to left */
+    }
+    
+    /* Target the button container inside the case header */
+    #case-workspace-view .card > .flex-row > div:last-child {
+        width: 100%;
+        align-items: stretch !important; /* Stretch buttons to full width */
+        margin-top: 15px;
+    }
+
+    /* 5. Fix Image List Items */
+    /* The evidence list items use a hardcoded style in HTML, so we target the structure */
+    #gallery > div {
+        flex-direction: column; /* Stack image/info above buttons */
+        align-items: flex-start !important;
+        gap: 10px;
+    }
+    
+    /* Fix the button group inside evidence items */
+    .btn-group {
+        width: 100%;
+        display: flex;
+        justify-content: space-between; /* Spread buttons out */
+    }
+    .btn-group button {
+        flex: 1; /* Each button takes equal width */
+        padding: 10px 5px; /* Bigger touch target */
+    }
+
+    /* 6. Scrollable Tables */
+    /* Prevents the table from breaking the card width */
+    .modal-content > div[style*="overflow-y:auto"] {
+        overflow-x: auto; /* Allow horizontal scroll for table */
+    }
+
+    /* 7. NEW: Fix Top Bar (Logout under text) */
+    .top-bar {
+        flex-direction: column; /* Stacks items vertically */
+        align-items: center;    /* Centers them */
+        text-align: center;     /* Centers the text inside */
+        gap: 10px;              /* Adds space between title and logout button */
+    }
+}
