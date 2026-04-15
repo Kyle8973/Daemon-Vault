@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <title>Daemon Vault</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <noscript>
+        <div class="no-js-banner">
+            ⚠️ <br><br> JavaScript Is Disabled <br><br> Daemon Vault Requires JavaScript To Function Properly <br><br>
+            Please Enable JavaScript In Your Browser Settings<br><br> ⚠️
+        </div>
+        <style>
+            /* Hide Everything If JS Is Disabled */
+            .top-bar,
+            #case-selector-view,
+            #case-workspace-view,
+            footer {
+                display: none !important;
+            }
+        </style>
+    </noscript>
+    </style>
+    </head>
+
+    <body>
+        <div class="top-bar">
+            <h1>Daemon Vault 😈<br> <small style="font-size:0.5em; color:#666;">A Secure Digital Evidence Management
+                    System</small></h1>
+            <a href="/api/logout"><button class="danger btn-auto">Logout</button></a>
+        </div>
+
+        <div id="case-selector-view">
+            <div class="card">
+                <div class="flex-row">
+                    <h3>📂 Your Cases</h3>
+                    <button onclick="showCreateCaseModal()" class="success btn-auto">+ New Case</button>
+                </div>
+                <div id="my-cases-list" style="margin-top:15px;"></div>
+            </div>
+            <div class="card">
+                <h3>Shared With Me</h3>
+                <div id="shared-cases-list"></div>
+            </div>
+        </div>
+
+        <div id="case-workspace-view" style="display:none;">
+            <button onclick="exitCase()" class="secondary btn-auto" style="margin-bottom:15px;">← Back to Case
+                List</button>
+
+            <div class="card" style="border-left: 5px solid #007bff;">
+                <div class="flex-row" style="align-items: flex-start;">
+                    <div>
+                        <strong id="ws-case-name" style="margin:0;">Loading...</strong>
+                        <br>
+                        <small id="ws-case-desc" style="color:#666; margin:5px 0;"></small>
+                        <div class="role-badge" id="ws-my-role"></div>
+                    </div>
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+                        <button onclick="downloadCaseReport()" class="secondary btn-auto"
+                            style="width: 160px; background-color: #5a6268;">📄 Full Case Log</button>
+
+                        <button onclick="openSettingsModal()" id="btn-settings" class="info btn-auto"
+                            style="display:none; width: 160px;">⚙️ Manage Team</button>
+                        <button onclick="deleteCurrentCase()" id="btn-delete-case" class="danger btn-auto"
+                            style="display:none; width: 160px;">🗑️ Delete Case</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="upload-card">
+                <h3>📤 Add Evidence</h3>
+                <div style="display:flex; gap:10px;">
+                    <input type="file" id="fileInput" style="flex-grow:1;">
+                    <button onclick="uploadImage()" class="btn-auto">Upload</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🗄️ Evidence Locker</h3>
+                <div id="gallery"></div>
+            </div>
+        </div>
+
+        <div id="createCaseModal" class="modal">
+            <div class="modal-content">
+                <h3>Create New Case</h3>
+                <input type="text" id="newCaseId" placeholder="Case ID" required>
+                <input type="text" id="newCaseName" placeholder="Case Name" required>
+                <textarea id="newCaseDesc" placeholder="Description (Optional)"
+                    style="width:100%; padding:10px; margin:8px 0; border:1px solid #ccc; border-radius:4px;"></textarea>
+                <button onclick="createCase()">Create Case</button>
+                <button onclick="closeModal('createCaseModal')" class="secondary">Cancel</button>
+            </div>
+        </div>
+
+        <div id="settingsModal" class="modal">
+            <div class="modal-content">
+                <h3>Manage Team</h3>
+                <div class="flex-row" style="margin-bottom:15px;">
+                    <input type="text" id="inviteUser" placeholder="Username">
+                    <select id="inviteRole">
+                        <option value="viewer">Viewer</option>
+                        <option value="contributor">Contributor</option>
+                        <option value="manager">Manager</option>
+                    </select>
+                    <button onclick="inviteMember()" class="success btn-auto">Add</button>
+                </div>
+                <h4>Current Team</h4>
+                <div id="team-list"
+                    style="max-height:150px; overflow-y:auto; border:1px solid #eee; padding:5px; margin-bottom:10px;">
+                </div>
+                <button onclick="closeModal('settingsModal')" class="secondary">Close</button>
+            </div>
+        </div>
+
+        <div id="detailsModal" class="modal">
+            <div class="modal-content">
+                <h3>Forensic Details</h3>
+                <div style="background:#f9f9f9; padding:10px; margin-bottom:15px; border-radius:4px;">
+                    <strong>Initial SHA-256 Hash:</strong>
+                    <div class="hash-box" id="det-hash">Loading...</div>
+                    <button id="btn-verify" onclick="verifyIntegrity()" class="success">🛡️ Verify Integrity</button>
+                    <div id="verify-result"
+                        style="margin-top:5px; font-weight:bold; display:none; text-align:center; padding:10px; border-radius:4px;">
+                    </div>
+                </div>
+
+                <div style="text-align:right; margin-bottom:10px;">
+                    <a id="btn-export-pdf" href="#" target="_blank">
+                        <button class="btn-dfreport secondary">📄 Download File Report (PDF)</button>
+                    </a>
+                </div>
+
+                <div style="max-height:200px; overflow-y:auto; border:1px solid #eee;">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Action</th>
+                                <th>User</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-log-body"></tbody>
+                    </table>
+                </div>
+                <button onclick="closeModal('detailsModal')" class="secondary">Close</button>
+            </div>
+        </div>
+
+        <script>
+            let currentCaseId = null;
+            let currentImageId = null;
+
+            document.addEventListener('DOMContentLoaded', loadCaseList);
+
+            // --- NAVIGATION ---
+            async function loadCaseList() {
+                try {
+                    const res = await fetch('/api/cases/list');
+                    const data = await res.json();
+                    renderList('my-cases-list', data.owned, true);
+                    renderList('shared-cases-list', data.shared, false);
+                } catch (e) { console.error(e); }
+            }
+
+            function renderList(elId, cases, isOwned) {
+                const container = document.getElementById(elId);
+                container.innerHTML = cases.length ? '' : '<p style="color:#999;">No Cases</p>';
+                cases.forEach(kase => {
+                    const div = document.createElement('div');
+                    div.className = 'case-card';
+                    const createdDate = new Date(kase.createdDate).toLocaleString();
+                    div.innerHTML = `
+                    <strong>Case ID: ${kase.caseID} <br> Case Name: ${kase.name}</strong><br>
+                    <small style="color:#666;">Case Description: ${kase.description || 'No Description'}</small><br>
+                    <small style="color:#999; font-size: 0.8em;">📅 Created: ${createdDate}</small>
+                    <div style="margin-top:5px;">
+                        ${isOwned ? '<span class="role-badge" style="background:#28a745; color:white;">Owner</span>' : '<span class="role-badge" style="background:#ffc107;">Shared</span>'}
+                    </div>
+                `;
+                    div.onclick = () => openCase(kase._id);
+                    container.appendChild(div);
+                });
+            }
+
+            async function openCase(id) {
+                currentCaseId = id;
+                document.getElementById('case-selector-view').style.display = 'none';
+                document.getElementById('case-workspace-view').style.display = 'block';
+
+                const res = await fetch(`/api/cases/${id}`);
+                if (!res.ok) { alert("Access Denied"); exitCase(); return; }
+                const data = await res.json();
+
+                document.getElementById('ws-case-name').innerText = `Case ID: ${data.case.caseID} \n Case Name: ${data.case.name}`;
+                document.getElementById('ws-case-desc').innerText = `Case Description: ${data.case.description}`;
+                document.getElementById('ws-my-role').innerText = `${data.role.toUpperCase()}`;
+                const isOwner = data.role === 'owner';
+
+                document.getElementById('upload-card').style.display = data.canUpload ? 'block' : 'none';
+                document.getElementById('btn-settings').style.display = isOwner ? 'block' : 'none';
+                document.getElementById('btn-delete-case').style.display = isOwner ? 'block' : 'none';
+
+                loadCaseImages();
+            }
+
+            function exitCase() {
+                currentCaseId = null;
+                document.getElementById('case-selector-view').style.display = 'block';
+                document.getElementById('case-workspace-view').style.display = 'none';
+                loadCaseList();
+            }
+
+            // --- EVIDENCE LIST (SECURE + DATE/SIZE) ---
+            async function loadCaseImages() {
+                const res = await fetch(`/api/images?caseId=${currentCaseId}`);
+                const images = await res.json();
+                const container = document.getElementById('gallery');
+                container.innerHTML = '';
+
+                if (images.length === 0) container.innerHTML = '<p style="color:#999;">No Evidence Uploaded</p>';
+
+                images.forEach(img => {
+                    const ext = img.filename.split('.').pop().toLowerCase();
+                    const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+                    const thumbSrc = isImg ? `/api/view/${img._id}?preview=true` : 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjODg4IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTEzIDJINmEyIDIgMCAwIDAtMiAydjE2YTIgMiAwIDAgMCAyIDJoMTJhMiAyIDAgMCAwIDItMlY5eiI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjEzIDIgMTMgOSAyeCA5Ij48L3BvbHlsaW5lPjwvc3ZnPg==';
+
+                    // --- 1. Date Formatting ---
+                    const dateObj = new Date(img.uploadDate);
+                    const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString();
+
+                    // --- 2. Size Formatting ---
+                    let sizeStr;
+                    if (img.size < 1024 * 1024) {
+                        sizeStr = (img.size / 1024).toFixed(1) + ' KB';
+                    } else {
+                        sizeStr = (img.size / (1024 * 1024)).toFixed(2) + ' MB';
+                    }
+
+                    const div = document.createElement('div');
+                    div.style.borderBottom = '1px solid #eee';
+                    div.style.padding = '15px 0';
+                    div.style.display = 'flex';
+                    div.style.justifyContent = 'space-between';
+                    div.style.alignItems = 'center';
+
+                    div.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <img src="${thumbSrc}" 
+                             class="secure-img" 
+                             oncontextmenu="return false;" 
+                             draggable="false"
+                             style="width:50px; height:50px; object-fit:cover; border-radius:4px; border:1px solid #eee;">
+                        <div>
+                            <strong>${img.originalName}</strong><br>
+                            <small style="color:#666;">
+                                📅 ${dateStr} &nbsp;|&nbsp; 💾 ${sizeStr}<br>
+                                👤 Uploaded By: ${img.owner?.username || 'Unknown'}
+                            </small>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button onclick="openDetails('${img._id}')" class="info">Details</button>
+                        <button onclick="secureView('${img._id}', this)" class="secondary">Verify & View</button>
+                        <button onclick="confirmDelete('${img._id}')" class="danger">Delete</button>
+                    </div>
+                `;
+                    container.appendChild(div);
+                });
+            }
+
+            // --- SECURE VIEW FUNCTION ---
+            async function secureView(id, btn) {
+                const originalText = btn.innerText;
+                const originalColor = btn.style.backgroundColor;
+
+                btn.disabled = true;
+                btn.innerText = "Verifying...";
+                btn.style.backgroundColor = "#6c757d";
+
+                try {
+                    const res = await fetch(`/api/verify/${id}`, { method: 'POST' });
+                    const data = await res.json();
+
+                    if (data.verified && data.token) {
+                        btn.innerText = "Verified ✅";
+                        btn.style.backgroundColor = "#28a745";
+
+                        setTimeout(() => {
+                            window.open(`/api/view/${id}?token=${data.token}`);
+                            btn.disabled = false;
+                            btn.innerText = originalText;
+                            btn.style.backgroundColor = originalColor;
+                        }, 500);
+                    } else {
+                        btn.innerText = "TAMPERED ❌";
+                        btn.style.backgroundColor = "#dc3545";
+                        alert("⚠️ SECURITY ALERT: Integrity Check Failed. Access Blocked.");
+
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.innerText = originalText;
+                            btn.style.backgroundColor = originalColor;
+                        }, 3000);
+                    }
+                } catch (e) {
+                    alert("Server Error.");
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                    btn.style.backgroundColor = originalColor;
+                }
+            }
+
+            // --- STANDARD FUNCTIONS ---
+            async function createCase() {
+                // 1. Get raw values
+                const id = document.getElementById('newCaseId').value.trim();
+                const name = document.getElementById('newCaseName').value.trim();
+                const desc = document.getElementById('newCaseDesc').value.trim();
+
+                // 2. CHECK: Are they empty?
+                if (!id || !name) {
+                    alert("Case ID And Case Name Are Required");
+                    return; // Stop function here
+                }
+
+                // 3. Send to Server if valid
+                const res = await fetch('/api/cases/create', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ caseID: id, name, description: desc })
+                });
+
+                if (res.ok) {
+                    closeModal('createCaseModal');
+                    loadCaseList();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed');
+                }
+            }
+
+            async function uploadImage() {
+                const file = document.getElementById('fileInput').files[0];
+                if (!file) return;
+                const fd = new FormData();
+                fd.append('image', file);
+                fd.append('caseId', currentCaseId);
+
+                const btn = document.querySelector('#upload-card button');
+                btn.innerText = "Uploading..."; btn.disabled = true;
+                await fetch('/api/upload', { method: 'POST', body: fd });
+                document.getElementById('fileInput').value = '';
+                btn.innerText = "Upload"; btn.disabled = false;
+                loadCaseImages();
+            }
+
+            async function deleteCurrentCase() {
+                if (!confirm("⚠️ WARNING: Delete this case? This CANNOT be undone.")) return;
+                try {
+                    const res = await fetch(`/api/cases/${currentCaseId}`, { method: 'DELETE' });
+                    if (res.ok) { alert('Case deleted.'); exitCase(); }
+                    else { const data = await res.json(); alert('Error: ' + data.error); }
+                } catch (e) { alert('Connection Error'); }
+            }
+
+            async function openSettingsModal() {
+                document.getElementById('settingsModal').style.display = 'block';
+                const list = document.getElementById('team-list');
+                list.innerHTML = 'Loading...';
+                const res = await fetch(`/api/cases/${currentCaseId}`);
+                const data = await res.json();
+                list.innerHTML = '';
+                data.case.members.forEach(m => {
+                    list.innerHTML += `<div class="flex-row" style="border-bottom:1px solid #eee; padding:5px;">
+                    <span>${m.username} (${m.role})</span>
+                    <button onclick="removeMember('${m.user}')" class="danger btn-auto" style="padding:2px 8px; font-size:0.8em;">Remove</button>
+                </div>`;
+                });
+            }
+
+            async function inviteMember() {
+                const user = document.getElementById('inviteUser').value;
+                const role = document.getElementById('inviteRole').value;
+                const res = await fetch('/api/cases/invite', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ caseId: currentCaseId, username: user, role })
+                });
+                if (res.ok) { document.getElementById('inviteUser').value = ''; openSettingsModal(); }
+                else alert('Failed');
+            }
+
+            async function removeMember(uid) {
+                if (!confirm("Remove user?")) return;
+                const res = await fetch('/api/cases/remove-member', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ caseId: currentCaseId, memberId: uid })
+                });
+                if (res.ok) openSettingsModal();
+            }
+
+            async function confirmDelete(id) {
+                if (confirm("Delete evidence? Logged action.")) {
+                    const res = await fetch(`/api/image/${id}`, { method: 'DELETE' });
+                    if (res.ok) loadCaseImages(); else alert("Permission Denied");
+                }
+            }
+
+            async function loadLogs(id) {
+                const tbody = document.getElementById('audit-log-body');
+                try {
+                    const res = await fetch(`/api/logs/${id}`);
+                    const logs = await res.json();
+                    tbody.innerHTML = '';
+                    logs.forEach(l => {
+                        tbody.innerHTML += `<tr><td>${new Date(l.timestamp).toLocaleString()}</td><td><strong>${l.action}</strong></td><td>${l.username}</td></tr>`;
+                    });
+                } catch (e) { console.error(e); }
+            }
+
+            async function openDetails(id) {
+                currentImageId = id;
+                document.getElementById('detailsModal').style.display = 'block';
+                document.getElementById('det-hash').innerText = 'Loading...';
+                document.getElementById('audit-log-body').innerHTML = '';
+                document.getElementById('verify-result').style.display = 'none';
+
+                // --- NEW: LINK BUTTON TO REPORT ---
+                document.getElementById('btn-export-pdf').href = `/api/reports/generate/${id}`;
+
+                fetch(`/api/meta/${id}`).then(r => r.json()).then(d => document.getElementById('det-hash').innerText = d.hash);
+                loadLogs(id);
+            }
+
+            async function verifyIntegrity() {
+                const btn = document.getElementById('btn-verify');
+                const box = document.getElementById('verify-result');
+                btn.disabled = true; btn.innerText = "Verifying...";
+                box.style.display = 'none';
+
+                try {
+                    const res = await fetch(`/api/verify/${currentImageId}`, { method: 'POST' });
+                    const data = await res.json();
+                    box.style.display = 'block';
+                    if (data.verified) {
+                        box.style.background = '#d4edda'; box.style.color = '#155724'; box.innerText = "✅ PASS: Integrity Confirmed";
+                    } else {
+                        box.style.background = '#f8d7da'; box.style.color = '#721c24'; box.innerText = "❌ FAIL: Hash Mismatch";
+                    }
+                    loadLogs(currentImageId);
+                } catch (e) { alert("Verification Failed"); }
+                finally { btn.disabled = false; btn.innerText = "🛡️ Verify Integrity"; }
+            }
+
+            // --- NEW: Download Full Case Report Function ---
+            function downloadCaseReport() {
+                if (!currentCaseId) return;
+                window.open(`/api/reports/generate-case/${currentCaseId}`, '_blank');
+            }
+
+            function showCreateCaseModal() { document.getElementById('createCaseModal').style.display = 'block'; }
+            function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+            window.onclick = function (e) { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; }
+        </script>
+    </body>
+    <footer>
+        <div style="text-align: center; margin-bottom: 10px;">
+            <small>Developed By <a href="https://github.com/Kyle8973" target="_blank"
+                    style="color: #007bff; text-decoration: none;">Kyle8973</a></small>
+        </div>
+    </footer>
+
+</html>
